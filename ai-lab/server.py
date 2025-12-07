@@ -1,23 +1,27 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import Response
-from fastapi.middleware.cors import CORSMiddleware # <--- NEW IMPORT
-from rembg import remove
+from fastapi.middleware.cors import CORSMiddleware
+from rembg import remove, new_session 
 from PIL import Image
 import io
 
 app = FastAPI()
 
-# --- NEW: ALLOW CHROME TO TALK TO PYTHON ---
+# Allow Chrome/Vercel to talk to us
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# -------------------------------------------
 
-print("--- FitSense AI Server is Starting ---")
+# PRE-LOAD THE LIGHTWEIGHT MODEL
+# We do this once at startup so it doesn't crash during the request
+print("--- Loading AI Model (Lite Version)... ---")
+model_name = "u2netp" # <--- The Lite Model (Uses less RAM)
+session = new_session(model_name)
+print("--- Model Loaded! Server Ready. ---")
 
 @app.get("/")
 def home():
@@ -26,11 +30,13 @@ def home():
 @app.post("/clean-image")
 async def clean_image(file: UploadFile = File(...)):
     print(f"Received file: {file.filename}")
+
     image_data = await file.read()
     input_image = Image.open(io.BytesIO(image_data))
-    
+
     print("Removing background...")
-    clean_image = remove(input_image)
+    # Use the pre-loaded lite session
+    clean_image = remove(input_image, session=session)
 
     output_buffer = io.BytesIO()
     clean_image.save(output_buffer, format="PNG")
