@@ -1,0 +1,18 @@
+# Mac/Windows system files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# Flutter
+.dart_tool/
+build/
+.pub-cache/
+.packages
+
+# Node/Firebase
+node_modules/
