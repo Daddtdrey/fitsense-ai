@@ -9,7 +9,6 @@ import io
 
 app = FastAPI()
 
-# 1. ALLOW CHROME/VERCEL ACCESS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,39 +17,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. LOAD THE "LITE" MODEL (u2netp)
-# This model is 4MB (vs the standard 176MB)
+# LOAD LITE MODEL
 print("--- Loading Lite AI Model... ---")
-model_name = "u2netp" 
-session = new_session(model_name)
+# 'u2netp' is the lightweight version
+session = new_session("u2netp")
 print("--- Model Loaded. ---")
 
 @app.get("/")
 def home():
-    return {"message": "FitSense AI is online (Lite Mode)"}
+    return {"message": "FitSense AI (Lite + Resize) is Online"}
 
 @app.post("/clean-image")
 async def clean_image(file: UploadFile = File(...)):
-    print(f"Received file: {file.filename}")
+    try:
+        print(f"Received file: {file.filename}")
 
-    # A. Read Image
-    image_data = await file.read()
-    input_image = Image.open(io.BytesIO(image_data))
+        # 1. Read Image
+        image_data = await file.read()
+        input_image = Image.open(io.BytesIO(image_data))
 
-    # B. Process with Lite Session
-    print("Removing background...")
-    clean_image = remove(input_image, session=session)
+        # 2. THE FIX: Resize massive photos
+        # We cap the size at 500x500 pixels. 
+        # This keeps RAM usage VERY low.
+        input_image.thumbnail((500, 500)) 
+        print(f"Resized image to: {input_image.size}")
 
-    # C. Save to Buffer
-    output_buffer = io.BytesIO()
-    clean_image.save(output_buffer, format="PNG")
-    output_bytes = output_buffer.getvalue()
+        # 3. Process with Lite Session
+        print("Removing background...")
+        clean_image = remove(input_image, session=session)
 
-    # D. MEMORY CLEANUP (Crucial for Free Tier)
-    del input_image
-    del clean_image
-    del image_data
-    gc.collect() # Force Python to empty the trash
-    print("Memory cleaned.")
+        # 4. Save to Buffer
+        output_buffer = io.BytesIO()
+        clean_image.save(output_buffer, format="PNG")
+        output_bytes = output_buffer.getvalue()
 
-    return Response(content=output_bytes, media_type="image/png")
+        # 5. Aggressive Cleanup
+        del input_image
+        del clean_image
+        del image_data
+        gc.collect()
+
+        return Response(content=output_bytes, media_type="image/png")
+    
+    except Exception as e:
+        print(f"ERROR: {e}")
+        return Response(content=f"Server Error: {e}".encode(), status_code=500)
