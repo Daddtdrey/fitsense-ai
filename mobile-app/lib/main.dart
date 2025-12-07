@@ -199,7 +199,7 @@ class _AIProcessorState extends State<AIProcessor> {
     if (image != null) {
       setState(() => _isLoading = true);
       try {
-        var request = http.MultipartRequest('POST', Uri.parse('http://127.0.0.1:8000/clean-image'));
+        var request = http.MultipartRequest('POST', Uri.parse('https://fitsense-ai-6ye9.onrender.com/clean-image'));
         request.files.add(http.MultipartFile.fromBytes('file', await image.readAsBytes(), filename: 'upload.jpg'));
         var response = await request.send();
         if (response.statusCode == 200) {
